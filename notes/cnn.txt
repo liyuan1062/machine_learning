@@ -1,0 +1,48 @@
+参考链接：
+https://www.zhihu.com/question/52668301
+http://www.infoq.com/cn/articles/introduction-of-tensorflow-part4
+全连接神经网络与卷积神经网络:
+卷积神经网络和全连接神经网络的唯一区别就在于神经网络中相邻两层的连接方式
+使用全连接神经网络处理图像的最大问题在于全连接层的参数太多
+参数增多除了导致计算速度减慢，还很容易导致过拟合问题
+
+在卷积神经网络中，每一个卷积层中使用的过滤器中的参数都是一样的。这是卷积神经网络一个非常重要的性质。
+从直观上理解，共享过滤器的参数可以使得图像上的内容不受位置的影响
+
+
+示例CNN各层：
+input-> 卷积 -> ReLU -> max pool -> 卷积 -> ReLU -> maxpool -> dropout -> 全连接网络 -> output
+
+要点：
+
+ReLU层目的是给一个在卷积层中刚经过线性计算操作（卷积层：只是数组元素依次（element wise）相乘与求和）的系统引入非线性特征
+在准确度不发生明显改变的情况下把训练速度提高很多（相比其他激活函数效率增加），进而间接帮助减轻梯度消失问题
+
+论文：Rectified Linear Units Improve Restricted Boltzmann Machines
+
+池化层也被叫做下采样（downsampling）层。在这个类别中，也有几种可供选择的层，最受欢迎的就是最大池化（ max-pooling）
+这一层背后的直观推理是：一旦我们知道了原始输入（这里会有一个高激活值）中一个特定的特征，它与其它特征的相对位置就比它的绝对位置更重要
+
+全连接层是传统的多层感知器
+卷积和池化层的输出表示了输入图像的高级特征。全连接层的目的是为了使用这些特征把输入图像基于训练数据集进行分类
+除了分类，添加一个全连接层也（一般）是学习这些特征的非线性组合的简单方法
+
+
+Dropout层会丢弃该层中一个随机的激活参数。这种机制强制网络变得更加冗余。
+这里的意思是：该网络将能够为特定的样本提供合适的分类或输出，即使一些激活参数被丢弃。此机制将保证神经网络不会对训练样本过拟合。
+
+论文：Dropout: A Simple Way to Prevent Neural Networks from Overfitting
+
+迁移学习的思路将帮助我们降低数据需求。
+迁移学习指的是利用预训练模型（神经网络的权重和参数都已经被其他人利用更大规模的数据集训练好了）并用自己的数据集将模型「微调」的过程
+
+tensorflow对梯度下降中学习率的优化：
+TensorFlow提供了一种更加灵活的学习率设置方法——指数衰减法，tf.train.exponential_decay函数实现了指数衰减学习率。
+通过这个函数，可以先使用较大的学习率来快速得到一个比较优的解，然后随着迭代的继续逐步减小学习率，使得模型在训练后期更加稳定。
+exponential_decay函数会指数级地减小学习率
+decayed_learning_rate = learning_rate * decay_rate ^ (global_step / decay_ steps)
+其中decayed_learning_rate为每一轮优化时使用的学习率，learning_rate为事先设定的初始学习率，decay_rate为衰减系数，decay_steps为衰减速度
+
+
+
+
