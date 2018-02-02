@@ -3,7 +3,7 @@ https://www.zhihu.com/question/52668301
 http://www.infoq.com/cn/articles/introduction-of-tensorflow-part4
 全连接神经网络与卷积神经网络:
 卷积神经网络和全连接神经网络的唯一区别就在于神经网络中相邻两层的连接方式
-使用全连接神经网络处理图像的最大问题在于全连接层的参数太多
+使用全连接神经网络处理图像的最大问题在于全连接层的参数太多，相邻层任意两节点之间都有链接，表明该网络模型并未考虑输入数据在空间结构上的不同
 参数增多除了导致计算速度减慢，还很容易导致过拟合问题
 
 在卷积神经网络中，每一个卷积层中使用的过滤器中的参数都是一样的。这是卷积神经网络一个非常重要的性质。
@@ -12,6 +12,7 @@ http://www.infoq.com/cn/articles/introduction-of-tensorflow-part4
 
 示例CNN各层：
 input-> 卷积 -> ReLU -> max pool -> 卷积 -> ReLU -> maxpool -> dropout -> 全连接网络 -> output
+https://plushunter.github.io/2017/04/21/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0%E7%B3%BB%E5%88%97%EF%BC%883%EF%BC%89%EF%BC%9A%E5%8D%B7%E7%A7%AF%E7%A5%9E%E7%BB%8F%E7%BD%91%E7%BB%9C/
 
 要点：
 

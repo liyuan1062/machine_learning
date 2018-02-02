@@ -1,0 +1,9 @@
+1.可迭代类（class collections.abc.Iterable）
+提供 __iter__() 这个方法的类，都是可迭代类
+或者 提供__getitem __() 这个方法的类，也是可迭代类
+
+2.迭代器类（class collections.abc.Iterator）
+同时提供 __iter__() 和 __next__() 这两个方法的类
+（从定义可以看出，迭代器类，一定是 可迭代类，因为它实现了__iter__()方法）
+（从定义来看，迭代器类，要比可迭代类 多实现一个 __next()__方法。）
+
