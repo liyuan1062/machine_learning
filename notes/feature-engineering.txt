@@ -58,6 +58,8 @@ L2正则化标识各个参数的平方的和的开方值。
 
 kaggle 案例机器学习过程：
 https://www.kaggle.com/startupsci/titanic-data-science-solutions
+
+one-hot: https://ask.hellobi.com/blog/DataMiner/4897
 一。拿到数据后的基本分析：
 1. 分析样本中哪些属性是文本的，哪些是数字的（连续 or 离散，普通数字 or 时序）
 2. 哪些属性值有错误值或书写错误
