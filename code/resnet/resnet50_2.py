@@ -86,8 +86,9 @@ def ResNet50_reference(X, classes=10):
         x = identity_block(x, kernel_size=(3, 3), filter_size=64, block='third_2n_%s' % i)
 
     x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=(2, 2))
-    fc_output = output_layer(x, NUM_CLASS)
-    flatten = tf.layers.flatten(fc_output, name='flatten')
+    # fc_output = output_layer(x, NUM_CLASS)
+    flatten = tf.layers.flatten(x, name='flatten')
+    # TODO: kernel and bias initial
     logits = tf.layers.dense(flatten, units=10, activation=tf.nn.softmax)
     return logits
 
@@ -141,11 +142,11 @@ def main():
 
         mini_batches = random_mini_batches(X_train, Y_train, mini_batch_size=128)
 
-        for i in range(40000):
+        for i in range(10):
             X_mini_batch, Y_mini_batch = mini_batches[np.random.randint(0, len(mini_batches))]
             _, cost_sess = sess.run([train_op, loss], feed_dict={X: X_mini_batch, Y: Y_mini_batch})
 
-            if i % 200 == 0:
+            if i % 2 == 0:
                 print(i, cost_sess)
 
         sess.run(tf.assign(TRAINING, False))
