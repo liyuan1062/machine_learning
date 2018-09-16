@@ -44,7 +44,7 @@ def load_CIFAR10(ROOT):
   Ytr = np.concatenate(ys)
   del X, Y
   Xte, Yte = load_CIFAR_batch(os.path.join(ROOT, 'test_batch'))
-  return Xtr, Ytr, Xte, Yte
+  return Xtr[0:100], Ytr[0:100], Xte[0:100], Yte[0:100]
 
 
 def get_CIFAR10_data(num_training=49000, num_validation=1000, num_test=1000,
@@ -55,7 +55,7 @@ def get_CIFAR10_data(num_training=49000, num_validation=1000, num_test=1000,
     condensed to a single function.
     """
     # Load the raw CIFAR-10 data
-    cifar10_dir = 'cs231n/datasets/cifar-10-batches-py'
+    cifar10_dir = '../../data/cifar-10-batches-py'
     X_train, y_train, X_test, y_test = load_CIFAR10(cifar10_dir)
         
     # Subsample the data

@@ -3,26 +3,7 @@
 import os
 import numpy as np
 import tensorflow as tf
-import h5py
 import math
-
-
-
-def load_dataset(path):
-    train_dataset = h5py.File(path+'/train_signs.h5', "r")
-    train_set_x_orig = np.array(train_dataset["train_set_x"][:])  # your train set features
-    train_set_y_orig = np.array(train_dataset["train_set_y"][:])  # your train set labels
-
-    test_dataset = h5py.File(path+'/test_signs.h5', "r")
-    test_set_x_orig = np.array(test_dataset["test_set_x"][:])  # your test set features
-    test_set_y_orig = np.array(test_dataset["test_set_y"][:])  # your test set labels
-
-    classes = np.array(test_dataset["list_classes"][:])  # the list of classes
-
-    train_set_y_orig = train_set_y_orig.reshape((1, train_set_y_orig.shape[0]))
-    test_set_y_orig = test_set_y_orig.reshape((1, test_set_y_orig.shape[0]))
-
-    return train_set_x_orig, train_set_y_orig, test_set_x_orig, test_set_y_orig, classes
 
 
 def process_orig_datasets(datasets, classes):
@@ -88,55 +69,23 @@ def convert_to_one_hot(Y, C):
     return Y
 
 
-def forward_propagation_for_predict(X, parameters):
-    """
-    Implements the forward propagation for the model: LINEAR -> RELU -> LINEAR -> RELU -> LINEAR -> SOFTMAX
-    Arguments:
-    X -- input dataset placeholder, of shape (input size, number of examples)
-    parameters -- python dictionary containing your parameters "W1", "b1", "W2", "b2", "W3", "b3"
-                  the shapes are given in initialize_parameters
-    Returns:
-    Z3 -- the output of the last LINEAR unit
-    """
+def top_k_error(predictions, labels, k):
 
-    # Retrieve the parameters from the dictionary "parameters"
-    W1 = parameters['W1']
-    b1 = parameters['b1']
-    W2 = parameters['W2']
-    b2 = parameters['b2']
-    W3 = parameters['W3']
-    b3 = parameters['b3']
-    # Numpy Equivalents:
-    Z1 = tf.add(tf.matmul(W1, X), b1)  # Z1 = np.dot(W1, X) + b1
-    A1 = tf.nn.relu(Z1)  # A1 = relu(Z1)
-    Z2 = tf.add(tf.matmul(W2, A1), b2)  # Z2 = np.dot(W2, a1) + b2
-    A2 = tf.nn.relu(Z2)  # A2 = relu(Z2)
-    Z3 = tf.add(tf.matmul(W3, A2), b3)  # Z3 = np.dot(W3,Z2) + b3
-
-    return Z3
+    batch_size = float(FLAGS.batch_size) #tf.shape(predictions)[0]
+    in_top1 = tf.to_float(tf.nn.in_top_k(predictions, labels, k=1))
+    num_correct = tf.reduce_sum(in_top1)
+    return (batch_size - num_correct) / batch_size
 
 
-def predict(X, parameters):
-    W1 = tf.convert_to_tensor(parameters["W1"])
-    b1 = tf.convert_to_tensor(parameters["b1"])
-    W2 = tf.convert_to_tensor(parameters["W2"])
-    b2 = tf.convert_to_tensor(parameters["b2"])
-    W3 = tf.convert_to_tensor(parameters["W3"])
-    b3 = tf.convert_to_tensor(parameters["b3"])
-
-    params = {"W1": W1,
-              "b1": b1,
-              "W2": W2,
-              "b2": b2,
-              "W3": W3,
-              "b3": b3}
-
-    x = tf.placeholder("float", [12288, 1])
-
-    z3 = forward_propagation_for_predict(x, params)
-    p = tf.argmax(z3)
-
-    sess = tf.Session()
-    prediction = sess.run(p, feed_dict={x: X})
-
-    return prediction
+def whitening_image(image_np):
+    '''
+    Performs per_image_whitening
+    :param image_np: a 4D numpy array representing a batch of images
+    :return: the image numpy array after whitened
+    '''
+    for i in range(len(image_np)):
+        mean = np.mean(image_np[i, ...])
+        # Use adjusted standard deviation here, in case the std == 0.
+        std = np.max([np.std(image_np[i, ...]), 1.0/np.sqrt(image_np.shape[1] * image_np.shape[2] * image_np.shape[3])])
+        image_np[i,...] = (image_np[i, ...] - mean) / std
+    return image_np
