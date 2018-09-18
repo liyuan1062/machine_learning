@@ -1,7 +1,7 @@
 import tensorflow as tf
 from resnet_util import *
-from data_utils import *
 import numpy as np
+
 
 TRAINING = tf.Variable(initial_value=True, dtype=tf.bool, trainable=False)
 
@@ -115,11 +115,11 @@ def ResNet50_reference(X, classes=10):
     Returns:
     """
 
-    # x = tf.pad(X, tf.constant([[0, 0],[3, 3,], [3, 3], [0, 0]]), "CONSTANT")
+    x = tf.pad(X, tf.constant([[0, 0],[3, 3,], [3, 3], [0, 0]]), "CONSTANT")
 
     # assert(x.shape == (x.shape[0], 38, 38, 3))
     # stage 1
-    x = tf.layers.conv2d(X, filters=64, kernel_size=(3, 3), strides=(1, 1), name='conv1')
+    x = tf.layers.conv2d(X, filters=64, kernel_size=(7, 7), strides=(2, 2), name='conv1')
     x = tf.layers.batch_normalization(x, axis=3, name='bn_conv1')
     x = tf.nn.relu(x)
     x = tf.layers.max_pooling2d(x, pool_size=(3, 3),strides=(2, 2))
@@ -152,7 +152,8 @@ def ResNet50_reference(X, classes=10):
 
     x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=(1,1))
 
-    flatten = tf.layers.flatten(x, name='flatten')
+    # flatten = tf.layers.flatten(x, name='flatten')
+    flatten = tf.contrib.layers.flatten(x)
     dense1 = tf.layers.dense(flatten, units=50, activation=tf.nn.relu)
     logits = tf.layers.dense(dense1, units=10, activation=tf.nn.softmax)
     return logits
@@ -186,7 +187,7 @@ def main():
 
     loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(onehot_labels=Y, logits=logits))
 
-    optimizer = tf.train.GradientDescentOptimizer(0.001)
+    optimizer = tf.train.GradientDescentOptimizer(0.0001)
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
         train_op = optimizer.minimize(loss)
@@ -197,19 +198,21 @@ def main():
         sess.run(tf.global_variables_initializer())
 
         assert (X_train.shape == (X_train.shape[0], 32, 32, 3))
-        mini_batches = random_mini_batches(X_train, Y_train, mini_batch_size=500)
+        mini_batches = random_mini_batches(X_train, Y_train, mini_batch_size=100)
 
-        for i in range(10):
+        for i in range(1000):
             X_mini_batch, Y_mini_batch = mini_batches[np.random.randint(0, len(mini_batches))]
             _, cost_sess = sess.run([train_op, loss], feed_dict={X: X_mini_batch, Y: Y_mini_batch})
 
-            if i % 1 == 0:
+            if i % 100 == 0:
                 print(i, cost_sess)
 
 
         sess.run(tf.assign(TRAINING, False))
 
+        print("start training step!")
         training_acur = sess.run(accuracy, feed_dict={X: X_train, Y: Y_train})
+        print("training step done!")
         testing_acur = sess.run(accuracy, feed_dict={X: X_test, Y: Y_test})
         print("traing acurracy: ", training_acur)
         print("testing acurracy: ", testing_acur)
