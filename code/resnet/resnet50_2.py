@@ -1,5 +1,6 @@
 import tensorflow as tf
 from resnet_util import *
+from data_utils import *
 import numpy as np
 
 
@@ -7,8 +8,18 @@ NUM_CLASS = 10
 
 TRAINING = tf.Variable(initial_value=True, dtype=tf.bool, trainable=False)
 
+HPS = {'momentum': 0.9, 'batch_size': 28}
 
-def identity_block(X_input, kernel_size, filter_size, block):
+
+def _conv(name, x, filter_size, strides):
+    """Convolution."""
+    n = 3 * 3 * filter_size
+    x = tf.layers.conv2d(x, filter_size, kernel_size=(3, 3), strides=strides,  name=name, padding='same',
+                         kernel_initializer=tf.random_normal_initializer(stddev=np.sqrt(2.0 / n)))
+    return x
+
+
+def identity_block(x_input, filter_size, resnet_name, strides, bn_relu_shortcuts=False):
     """
     Implementation of the identity block as defined in Figure 3
     Arguments:
@@ -21,32 +32,37 @@ def identity_block(X_input, kernel_size, filter_size, block):
     """
 
     # defining name basis
-    conv_name_base = 'conv_' + block
-    bn_name_base = 'bn_' + block
+    conv_name_base = 'conv_' + resnet_name
+    bn_name_base = 'bn_' + resnet_name
 
-    with tf.name_scope("id_block_%s" % block):
-        X_shortcut = X_input
+    with tf.name_scope("identiry_block_%s" % resnet_name):
+        if bn_relu_shortcuts:
+            x = tf.layers.batch_normalization(x_input, axis=3, momentum=HPS['momentum'], name=bn_name_base + '_a',
+                                              training=TRAINING)
+            x = tf.nn.relu(x)
+            x_shortcut = x
+        else:
+            x_shortcut = x_input
+            x = tf.layers.batch_normalization(x_input, axis=3, momentum=HPS['momentum'], name=bn_name_base + '_a',
+                                              training=TRAINING)
+            x = tf.nn.relu(x)
 
-        # First component of main path
-        x = tf.layers.conv2d(X_input, filter_size, kernel_size, strides=(1, 1),
-                             name=conv_name_base+'_a', padding='same')
-        x = tf.layers.batch_normalization(x, axis=3, name=bn_name_base+'_a', training=TRAINING)
+
+        # first conv
+        x = _conv(name=conv_name_base+'_a', x=x, filter_size=filter_size, strides=strides)
+
+        # second conv
+        x = tf.layers.batch_normalization(x, axis=3, momentum=HPS['momentum'], name=bn_name_base+'_b', training=TRAINING)
         x = tf.nn.relu(x)
-
-        # Second component of main path
-        x = tf.layers.conv2d(x, filter_size, kernel_size, strides=(1, 1),
-                             name=conv_name_base+'_b', padding='same')
-        x = tf.layers.batch_normalization(x, axis=3, name=bn_name_base+'_b', training=TRAINING)
-
+        x = _conv(name=conv_name_base+'_b', x=x, filter_size=filter_size, strides=(1, 1))
         # shotcuts
-        if X_shortcut.shape[-1] * 2 == x.shape[-1]:
-            X_shortcut = tf.layers.conv2d(X_shortcut, x.shape[-1], (1,1),
-                                      strides=(1, 1), name=conv_name_base + '_shortcuts')
-            X_shortcut = tf.layers.batch_normalization(X_shortcut, axis=3, name=bn_name_base + '_shortcuts', training=TRAINING)
-        X_add_shortcut = tf.add(x, X_shortcut)
-        add_result = tf.nn.relu(X_add_shortcut)
+        if x_shortcut.shape[-1] * 2 == x.shape[-1]:
+            x_shortcut = tf.layers.average_pooling2d(x_shortcut, (2, 2), (2, 2), 'VALID')
+            x_shortcut = tf.pad(x_shortcut, [[0, 0], [0, 0], [0, 0],
+                         [(x.shape[-1] - x_shortcut.shape[-1]) // 2, (x.shape[-1] - x_shortcut.shape[-1]) // 2]])
+        x_add_shortcut = tf.add(x, x_shortcut)
 
-    return add_result
+    return x_add_shortcut
 
 
 def ResNet50_reference(X, classes=10):
@@ -62,51 +78,42 @@ def ResNet50_reference(X, classes=10):
     Returns:
     """
 
-    # x = tf.pad(X, tf.constant([[0, 0],[3, 3,], [3, 3], [0, 0]]), "CONSTANT")
-
-    # assert(x.shape == (x.shape[0], 38, 38, 3))
-    # stage 1
-    x = tf.layers.conv2d(X, filters=16, kernel_size=(3, 3), strides=(1, 1), name='conv1', padding='same')
-    x = tf.layers.batch_normalization(x, axis=3, name='bn_conv1')
-    x = tf.nn.relu(x)
-
+    # init conv
+    x = _conv(name='conv1', x=X, filter_size=16, strides=(1, 1))
 
     # first 2n
-    for i in range(9):
-        x = identity_block(x, kernel_size=(3, 3), filter_size=16, block='first_2n_%s' % i)
+    x = identity_block(x, filter_size=16, resnet_name='first_2n_0', strides=(1, 1), bn_relu_shortcuts=True)
+    for i in range(1, 9):
+        x = identity_block(x, filter_size=16, resnet_name='first_2n_%s' % i, strides=(1, 1))
 
     # second 2n
-    for i in range(9):
-        x = identity_block(x, kernel_size=(3, 3), filter_size=32, block='second_2n_%s' % i)
-    x = tf.layers.max_pooling2d(x, pool_size=(2, 2), strides=(2, 2))
+    x = identity_block(x, filter_size=32, resnet_name='second_2n_0', strides=(2, 2))
+    for i in range(1, 9):
+        x = identity_block(x, filter_size=32, resnet_name='second_2n_%s' % i, strides=(1, 1))
 
     # third 2n
-    for i in range(9):
-        x = identity_block(x, kernel_size=(3, 3), filter_size=64, block='third_2n_%s' % i)
+    x = identity_block(x, filter_size=64, resnet_name='third_2n_0', strides=(2, 2))
+    for i in range(1, 9):
+        x = identity_block(x, filter_size=64, resnet_name='third_2n_%s' % i, strides=(1, 1))
 
+    x = tf.layers.batch_normalization(x, axis=3, momentum=HPS['momentum'], name="last_bn", training=TRAINING)
+    x = tf.nn.relu(x)
     x = tf.layers.average_pooling2d(x, pool_size=(2, 2), strides=(2, 2))
-    # fc_output = output_layer(x, NUM_CLASS)
+    # logits = _fully_connected(x, NUM_CLASS)
     flatten = tf.layers.flatten(x, name='flatten')
-    # TODO: kernel and bias initial
-    logits = tf.layers.dense(flatten, units=10, activation=tf.nn.softmax)
+    logits = tf.layers.dense(flatten, units=10, activation=tf.nn.softmax,
+                              kernel_initializer=tf.variance_scaling_initializer(mode='fan_avg'))
     return logits
 
 
-def output_layer(input_layer, num_labels):
-    '''
-    :param input_layer: 2D tensor
-    :param num_labels: int. How many output labels in total? (10 for cifar10 and 100 for cifar100)
-    :return: output layer Y = WX + B
-    '''
-    input_dim = input_layer.get_shape().as_list()[-1]
-    # regularizer = tf.contrib.layers.l2_regularizer(scale=0.0001)
-
-    fc_w = tf.get_variable(name='fc_weights', shape=[input_dim, num_labels],
-                           initializer=tf.uniform_unit_scaling_initializer(factor=1.0))
-    fc_b = tf.get_variable(name='fc_bias', shape=[num_labels], initializer=tf.zeros_initializer())
-
-    fc_h = tf.matmul(input_layer, fc_w) + fc_b
-    return fc_h
+def _fully_connected(x, out_dim):
+    """FullyConnected layer for final output."""
+    dw_shape = [int(x.shape[1]) * int(x.shape[2]) * int(x.shape[3]), out_dim]
+    x = tf.reshape(x, [HPS['batch_size'], -1])
+    w = tf.get_variable(
+        'DW', dw_shape, initializer=tf.uniform_unit_scaling_initializer(factor=1.0))
+    b = tf.get_variable('biases', [out_dim], initializer=tf.constant_initializer())
+    return tf.nn.xw_plus_b(x, w, b)
 
 
 def main():
@@ -128,10 +135,9 @@ def main():
     Y = tf.placeholder(tf.float32, shape=(None, classes), name='Y')
 
     logits = ResNet50_reference(X)
-
     loss = tf.reduce_mean(tf.losses.softmax_cross_entropy(onehot_labels=Y, logits=logits))
 
-    optimizer = tf.train.GradientDescentOptimizer(0.1)
+    optimizer = tf.train.GradientDescentOptimizer(0.01)
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
         train_op = optimizer.minimize(loss)
@@ -141,18 +147,19 @@ def main():
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        mini_batches = random_mini_batches(X_train, Y_train, mini_batch_size=128)
+        mini_batches = random_mini_batches(X_train, Y_train, mini_batch_size=HPS['batch_size'])
 
-        for i in range(60000):
+        for i in range(10):
             X_mini_batch, Y_mini_batch = mini_batches[np.random.randint(0, len(mini_batches))]
             _, cost_sess = sess.run([train_op, loss], feed_dict={X: X_mini_batch, Y: Y_mini_batch})
 
-            if i % 1000 == 0:
+            if i % 1 == 0:
                 print(i, cost_sess)
 
         sess.run(tf.assign(TRAINING, False))
 
         print("start training step!")
+        # training_acur = sess.run(accuracy, feed_dict={X: X_train[0:40000], Y: Y_train[0:40000]})
         training_acur = sess.run(accuracy, feed_dict={X: X_train, Y: Y_train})
         print("training step done!")
         testing_acur = sess.run(accuracy, feed_dict={X: X_test, Y: Y_test})
