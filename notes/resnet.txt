@@ -1,0 +1,21 @@
+accuracy	主要超参数+优化手段
+Training	Test
+0.677	0.581	内存原因只使用3w training data(一共5w training image)，Learning rate 0.1, 训练迭代6w次，batch size 128
+默认API参数，无任何优化
+0.931	0.643	只使用3w training data(一共5w training image)，Learning rate 0.01, 训练迭代6w次，batch size 128
+0.937	0.635	使用5w training image训练，但是training accurace只用3w来计算，learning rate 0.01，batch size 128
+0.979	0.815	5w training image训练，但是training accurace只用3w来计算，指数衰减learning rate = 0.01* 0.96 ^ (6w/1w)
+Loss优化由SGD更改为MomentumOptimizer，momentum 0.9，卷积网络weight初始化设置和论文一致（w来自于(0, sqrt(2/(3*3*filter_out_size))的正态分布)
+
+
+原论文(Deep Residual Learning for Image Recognition) 4.2章节描述了残差网络在CIFAR10数据集上的应用，处理CIFAR10的resnet50网络的结构相比论文前面提到的网络做了简化，首先找出论文在处理CIFAR10时应用的残差网络Resnet50结构为1+2n+2n+2n+1(n=9 for resnet)，其中含义如下：
+1：初始的convolution层；
+第一个 2n：n个identity mapping网络块，每一个identity mapping块包含2个扩展的卷积层和一个shortcut连接（一个扩展的卷积处理层为：1个Batch normalization+1个Relu+1个conv），shortcut连接是讲identity mapping网络块的输入图像值直接和该层中最后一个conv结果求和；在处理CIFAR10时的网络参数为：卷积kernel 3x3，filter size=16，该层输出的单个图像shape=(32,32,16)
+第二个 2n：结构和第一个2n相同，参数调整为：卷积kernel 3x3，filter size=32，该层输出的单个图像shape=(16,16,32)
+第三个 2n：结构和第一个2n相同，参数调整为：卷积kernel 3x3，filter size=64，该层输出的单个图像shape=(8,8,64)
+1：2x2的平均值池化层(padding)+全连接层（8x8x64，10）+softmax激活
+
+目前实验结果为82.2%，和预期93.6还有很大差距，相交论文描述，实验中尚待改进的点有：
+1.	数据增强，论文中原始图像进行了pad和随机裁剪，实验的代码中尚未使用；
+2.	论文中未直接使用Relu激活函数，而是使用的增强版的PRelu；
+3.	论文中前面提到的网络结构是Resnet56，并非Resnet50，本实验按照论文4.2节描述实现，不确定论文中是否是Resnet56的网络结构。
